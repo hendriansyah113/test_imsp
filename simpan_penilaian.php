@@ -1,18 +1,47 @@
 <?php
 // Koneksi ke database
-$conn = new mysqli("localhost", "root", "", "spmi");
+$host = 'localhost';
+$user = 'root';
+$password = '';
+$dbname = 'spmi';
+$conn = mysqli_connect($host, $user, $password, $dbname);
 
-if ($conn->connect_error) {
-    die("Koneksi gagal: " . $conn->connect_error);
+if (!$conn) {
+    die("Koneksi gagal: " . mysqli_connect_error());
 }
 
-// Simpan nilai
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    foreach ($_POST['nilai'] as $indikator_id => $nilai) {
-        $stmt = $conn->prepare("INSERT INTO penilaian (indikator_id, nilai) VALUES (?, ?)");
-        $stmt->bind_param("ii", $indikator_id, $nilai);
-        $stmt->execute();
+// Cek apakah data penilaian diterima
+if (isset($_POST['penilaian']) && is_array($_POST['penilaian'])) {
+    $penilaian = $_POST['penilaian'];
+
+    // Siapkan query untuk update penilaian berdasarkan indikator_id
+    $stmt = $conn->prepare("UPDATE indikator SET skor = ? WHERE id = ?");
+
+    // Cek jika prepare gagal
+    if ($stmt === false) {
+        die("Error preparing the statement: " . mysqli_error($conn));
     }
-    echo "Data berhasil disimpan.";
+
+    // Loop melalui data penilaian dan update data berdasarkan indikator_id
+    foreach ($penilaian as $data) {
+        $indikator_id = $data['soal_id']; // ID indikator
+        $poin = $data['poin']; // Poin penilaian
+
+        // Bind dan execute query
+        if (!$stmt->bind_param("ii", $poin, $indikator_id)) {
+            die("Error binding parameters: " . $stmt->error);
+        }
+
+        if (!$stmt->execute()) {
+            die("Error executing statement: " . $stmt->error);
+        }
+    }
+
+    echo "Penilaian berhasil diperbarui!";
+} else {
+    echo "Tidak ada data penilaian yang diterima.";
 }
-?>
+
+// Tutup koneksi
+$stmt->close();
+mysqli_close($conn);
